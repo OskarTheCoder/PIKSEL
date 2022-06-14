@@ -180,8 +180,41 @@ def get_file():
 
 def create_new_file():
     read = get_input()
-    
     return FILE(os.getcwd()+"/"+read[2], read[2], get_size(os.getcwd()+"/"+read[2]))       
+
+def change_pixel(file, x, y, rgb):
+    reader = png.Reader(file.path)
+    w, h, pixels, metadata = reader.read_flat()
+    pixel_width = 3
+    print(pixels)
+    if metadata["alpha"]:
+        pixel_width = 4
+    index = pixel_width
+    listt = []
+    row = []
+    for i in range(len(pixels)):
+        index -= 1
+        if index < 0:            
+            listt.append(row)
+            row = []
+            index = pixel_width
+        else:
+            row.append(pixels[i])
+    listt[y] = rgb
+
+    list2 = []
+    for c in range(len(listt)):
+        for m in range(len(listt[c])):
+            list2.append(listt[c][m])
+    listr = (list2)
+
+    output = open(file.path, 'wb')
+    writer = png.Writer(w, h, **metadata)
+    writer.write_array(output, listr)
+    output.close()
+
+f = get_file()
+change_pixel(f,0,0,((255,0,255)))
 
 cur_file = None
 
