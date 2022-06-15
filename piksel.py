@@ -178,25 +178,14 @@ def get_pixels_list(file):
             index = pixel_width
         else:
             row.append(pixels[i])
-
-    list2 = []
-    for c in range(len(listt)):
-        for m in range(len(listt[c])):
-            list2.append(listt[c][m])
-    return list2
-
+    return listt
 
 class FILE():
-    def __init__(self, path, name, size=False):
+    def __init__(self, path, name, size):
         self.path = path
         self.file_name = name
         self.size = size
         self.pixels = get_pixels_list(self)
-        print(self.pixels)
-    
-    def log(self):
-        print(self.path, self.file_name)
-        print(self.size)
     
 def get_file():
     file = filedialog.askopenfile()
@@ -207,7 +196,7 @@ def get_file():
 def create_new_file():
     read = get_input()
     if read != -1:
-        return FILE(os.getcwd()+"/"+read[2], read[2], get_size(os.getcwd()+"/"+read[2]))    
+        return FILE(os.getcwd()+"/"+read[2], read[2], get_size(os.getcwd()+"/"+read[2]))
     return None
 """
 def change_pixel(file, x, y, rgb):
@@ -276,16 +265,34 @@ cur_file = None
 # points (x, y) som et koordinatsystem
 pixels_changed = []
 
-file_rect = (0,0,80,25)
-new_file_rect = (80,0,80,25)
+file_rect = (0,0,80,26)
+new_file_rect = (80,0,80,26)
 
-offset = [0,0]
+offset = [WIDTH//4-13,HEIGHT//4-13]
+
+
+
 
 upper_texts = [TEXT((13,7), "OPEN", pygame.font.SysFont("freecomicsansbold", 24)), TEXT((93,7), "NEW", pygame.font.SysFont("freecomicsansbold", 24))]
 
 rect_hovering_over = None
 
 current_file = None
+
+pixel_size = 5
+
+class PIXEL():
+    def __init__(self, pos, img_pos, rgb, size):
+        self.world_pos = pos
+        self.img_pos = img_pos
+        self.colour = rgb
+        self.size = size
+        self.rect = (pos[0],pos[1],size,size)
+
+    def draw(self):
+        pygame.draw.rect(SCREEN, self.colour, (self.world_pos[0], self.world_pos[1], pixel_size, pixel_size))
+
+pixels = []
 
 run = True
 while run:
@@ -296,7 +303,7 @@ while run:
             run = False
         if event.type == pygame.MOUSEBUTTONDOWN:
             #pos = pygame.mouse.get_pos()
-            if pos[1] > 25:
+            if pos[1] > 26:
                 pass
             else:
                 if pygame.rect.Rect(file_rect).collidepoint(pos[0],pos[1]):
@@ -309,12 +316,29 @@ while run:
                         run = False
                     else:
                         pygame.display.set_caption("PIKSEL --- " + current_file.file_name + " ---")
+                        for y in range(current_file.size[1]):
+                            for x in range(current_file.size[0]):
+                                #pygame.draw.rect(SCREEN, current_file.pixels[y], (x*pixel_size + offset[0], y*pixel_size + offset[1], pixel_size, pixel_size))
+                                pixels.append(PIXEL( (x*pixel_size + offset[0], y*pixel_size + offset[1]), (x,y), ((255,255,255)), pixel_size ))
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_z:
+                pixel_size += 1
+                save = []
+                for y in range(current_file.size[1]):
+                    for x in range(current_file.size[0]):
+                        save.append(PIXEL( (x*pixel_size + offset[0], y*pixel_size + offset[1]), (x,y), ((255,255,255)), pixel_size ))
+            elif event.key == pygame.K_x:
+                pixel_size -= 1
 
-    SCREEN.fill((255,255,255))
+    SCREEN.fill((172,172,172))
 
-    pygame.draw.line(SCREEN, ((0,0,0)), (0,25), (WIDTH,25) )
+    for pix in pixels:
+        pix.draw()
 
-    if pos[1] < 25:
+    pygame.draw.rect(SCREEN, ((172,172,172)), (0,0,WIDTH,26))
+    pygame.draw.line(SCREEN, ((0,0,0)), (0,26), (WIDTH,26) )
+
+    if pos[1] < 26:
         if pygame.rect.Rect(file_rect).collidepoint(pos[0],pos[1]):
             pygame.draw.rect(SCREEN, ((255,0,0)), file_rect )
         else:
