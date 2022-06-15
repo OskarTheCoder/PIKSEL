@@ -1,7 +1,7 @@
 import os
 import pygame
 from pygame.locals import *
-import png
+import png, array
 from tkinter import filedialog
 
 pygame.init()
@@ -12,7 +12,7 @@ HEIGHT = 800
 
 SCREEN = pygame.display.set_mode((WIDTH,HEIGHT))
 
-title = "PIKSEL --- FREE PNG PIXEL ART EDITOR --- ---------------"
+title = "PIKSEL --- FREE PNG PIXEL ART EDITOR ---"
 
 MAINFONT = pygame.font.SysFont("freecomicsans", 32)
 
@@ -163,12 +163,36 @@ def get_input():
         pygame.display.update()
         clock.tick(60)
         
+def get_pixels_list(file):
+    reader = png.Reader(filename=file.path)
+    w, h, pixels, metadata = reader.read_flat()
+    pixel_width = 4 if metadata['alpha'] else 3
+    index = pixel_width
+    listt = [] 
+    row = []
+    for i in range(len(pixels)):
+        index -= 1
+        if index < 0:            
+            listt.append(row)
+            row = []
+            index = pixel_width
+        else:
+            row.append(pixels[i])
+
+    list2 = []
+    for c in range(len(listt)):
+        for m in range(len(listt[c])):
+            list2.append(listt[c][m])
+    return list2
+
 
 class FILE():
     def __init__(self, path, name, size=False):
         self.path = path
         self.file_name = name
         self.size = size
+        self.pixels = get_pixels_list(self)
+        print(self.pixels)
     
     def log(self):
         print(self.path, self.file_name)
@@ -176,12 +200,16 @@ class FILE():
     
 def get_file():
     file = filedialog.askopenfile()
-    return FILE(file.name, file.name.split("/")[-1], get_size(file.name))
+    if file != None:
+        return FILE(file.name, file.name.split("/")[-1], get_size(file.name))
+    return None
 
 def create_new_file():
     read = get_input()
-    return FILE(os.getcwd()+"/"+read[2], read[2], get_size(os.getcwd()+"/"+read[2]))       
-
+    if read != -1:
+        return FILE(os.getcwd()+"/"+read[2], read[2], get_size(os.getcwd()+"/"+read[2]))    
+    return None
+"""
 def change_pixel(file, x, y, rgb):
     reader = png.Reader(file.path)
     w, h, pixels, metadata = reader.read_flat()
@@ -209,26 +237,98 @@ def change_pixel(file, x, y, rgb):
     listr = (list2)
 
     output = open(file.path, 'wb')
-    writer = png.Writer(w, h, **metadata)
+    writer = png.Writer(w, h, metadata)
     writer.write_array(output, listr)
     output.close()
+"""
 
+def change_pixel(point, file):
+  reader = png.Reader(filename=file.path)
+  w, h, pixels, metadata = reader.read_flat()
+  pixel_byte_width = 4 if metadata['alpha'] else 3
+  pixel_position = point[0] + point[1] * w
+  new_pixel_value = (255, 0, 0, 0) if metadata['alpha'] else (255, 0, 0)
+  pixels[
+    pixel_position * pixel_byte_width :
+    (pixel_position + 1) * pixel_byte_width] = array.array('B', new_pixel_value)
+
+  output = open(file.path, 'wb')
+  writer = png.Writer(w, h, **metadata)
+  writer.write_array(output, pixels)
+  output.close()
+
+class TEXT():
+    def __init__(self, pos, text, font):
+        self.pos = pos
+        self.text = text
+        self.font = font
+
+    def draw(self):
+        SCREEN.blit(self.font.render(self.text, True, ((255,255,255)) ), self.pos)
+
+"""
 f = get_file()
-change_pixel(f,0,0,((255,0,255)))
+change_pixel((1,0), f)
 
 cur_file = None
+"""
 
-create_new_file()
+# points (x, y) som et koordinatsystem
+pixels_changed = []
+
+file_rect = (0,0,80,25)
+new_file_rect = (80,0,80,25)
+
+offset = [0,0]
+
+upper_texts = [TEXT((13,7), "OPEN", pygame.font.SysFont("freecomicsansbold", 24)), TEXT((93,7), "NEW", pygame.font.SysFont("freecomicsansbold", 24))]
+
+rect_hovering_over = None
+
+current_file = None
+
 run = True
 while run:
+    pos = pygame.mouse.get_pos()
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False
-
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            #pos = pygame.mouse.get_pos()
+            if pos[1] > 25:
+                pass
+            else:
+                if pygame.rect.Rect(file_rect).collidepoint(pos[0],pos[1]):
+                    current_file = get_file()
+                    if current_file != None:
+                        pygame.display.set_caption("PIKSEL --- " + current_file.file_name + " ---")
+                elif pygame.rect.Rect(new_file_rect).collidepoint(pos[0],pos[1]):
+                    current_file = create_new_file()
+                    if type(current_file) == int or current_file == -1 or current_file == None:
+                        run = False
+                    else:
+                        pygame.display.set_caption("PIKSEL --- " + current_file.file_name + " ---")
 
     SCREEN.fill((255,255,255))
 
+    pygame.draw.line(SCREEN, ((0,0,0)), (0,25), (WIDTH,25) )
 
+    if pos[1] < 25:
+        if pygame.rect.Rect(file_rect).collidepoint(pos[0],pos[1]):
+            pygame.draw.rect(SCREEN, ((255,0,0)), file_rect )
+        else:
+            pygame.draw.rect(SCREEN, ((0,0,0)), file_rect )
+    else:
+        pygame.draw.rect(SCREEN, ((0,0,0)), file_rect )
+
+    if pygame.rect.Rect(new_file_rect).collidepoint(pos[0],pos[1]):
+        pygame.draw.rect(SCREEN, ((255,0,0)), new_file_rect )
+    else:
+        pygame.draw.rect(SCREEN, ((0,0,0)), new_file_rect)
+
+    for text in upper_texts:
+        text.draw()
 
     pygame.display.update()
     clock.tick(60)
