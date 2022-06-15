@@ -3,6 +3,7 @@ import pygame
 from pygame.locals import *
 import png, array
 from tkinter import filedialog
+from PIL import Image
 
 pygame.init()
 
@@ -186,6 +187,7 @@ class FILE():
         self.file_name = name
         self.size = size
         self.pixels = get_pixels_list(self)
+        #print(self.pixels)
     
 def get_file():
     file = filedialog.askopenfile()
@@ -245,6 +247,16 @@ def change_pixel(point, file):
   writer = png.Writer(w, h, **metadata)
   writer.write_array(output, pixels)
   output.close()
+
+def read_pixel(point, file):
+    im = Image.open(file.path)
+    im = im.convert('RGB')
+    x = point[0]
+    y = point[1]
+    pix = im.load()
+    #print(pix[0,0])
+    #print(pix[x,y])
+    return pix[x,y]
 
 class TEXT():
     def __init__(self, pos, text, font):
@@ -310,6 +322,9 @@ while run:
                     current_file = get_file()
                     if current_file != None:
                         pygame.display.set_caption("PIKSEL --- " + current_file.file_name + " ---")
+                        for y in range(current_file.size[1]):
+                            for x in range(current_file.size[0]):                             
+                                pixels.append(PIXEL( (x*pixel_size + offset[0], y*pixel_size + offset[1]), (x,y), read_pixel((x,y), current_file), pixel_size ))
                 elif pygame.rect.Rect(new_file_rect).collidepoint(pos[0],pos[1]):
                     current_file = create_new_file()
                     if type(current_file) == int or current_file == -1 or current_file == None:
@@ -322,13 +337,20 @@ while run:
                                 pixels.append(PIXEL( (x*pixel_size + offset[0], y*pixel_size + offset[1]), (x,y), ((255,255,255)), pixel_size ))
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_z:
-                pixel_size += 1
+                pixel_size *= 2
                 save = []
                 for y in range(current_file.size[1]):
                     for x in range(current_file.size[0]):
-                        save.append(PIXEL( (x*pixel_size + offset[0], y*pixel_size + offset[1]), (x,y), ((255,255,255)), pixel_size ))
+                        save.append(PIXEL( (x*pixel_size + offset[0], y*pixel_size + offset[1]), (x,y), read_pixel((x,y), current_file), pixel_size ))
+                pixels = save
             elif event.key == pygame.K_x:
-                pixel_size -= 1
+                pixel_size = pixel_size // 2
+                save = []
+                for y in range(current_file.size[1]):
+                    for x in range(current_file.size[0]):
+                        print(read_pixel((x,y), current_file))
+                        save.append(PIXEL( (x*pixel_size + offset[0], y*pixel_size + offset[1]), (x,y), read_pixel((x,y), current_file), pixel_size ))
+                pixels = save
 
     SCREEN.fill((172,172,172))
 
@@ -345,6 +367,7 @@ while run:
             pygame.draw.rect(SCREEN, ((0,0,0)), file_rect )
     else:
         pygame.draw.rect(SCREEN, ((0,0,0)), file_rect )
+
 
     if pygame.rect.Rect(new_file_rect).collidepoint(pos[0],pos[1]):
         pygame.draw.rect(SCREEN, ((255,0,0)), new_file_rect )
