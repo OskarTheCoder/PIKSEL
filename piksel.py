@@ -200,38 +200,6 @@ def create_new_file():
     if read != -1:
         return FILE(os.getcwd()+"/"+read[2], read[2], get_size(os.getcwd()+"/"+read[2]))
     return None
-"""
-def change_pixel(file, x, y, rgb):
-    reader = png.Reader(file.path)
-    w, h, pixels, metadata = reader.read_flat()
-    pixel_width = 3
-    print(pixels)
-    if metadata["alpha"]:
-        pixel_width = 4
-    index = pixel_width
-    listt = []
-    row = []
-    for i in range(len(pixels)):
-        index -= 1
-        if index < 0:            
-            listt.append(row)
-            row = []
-            index = pixel_width
-        else:
-            row.append(pixels[i])
-    listt[y] = rgb
-
-    list2 = []
-    for c in range(len(listt)):
-        for m in range(len(listt[c])):
-            list2.append(listt[c][m])
-    listr = (list2)
-
-    output = open(file.path, 'wb')
-    writer = png.Writer(w, h, metadata)
-    writer.write_array(output, listr)
-    output.close()
-"""
 
 def change_pixel(point, file):
   reader = png.Reader(filename=file.path)
@@ -267,25 +235,20 @@ class TEXT():
     def draw(self):
         SCREEN.blit(self.font.render(self.text, True, ((255,255,255)) ), self.pos)
 
-"""
-f = get_file()
-change_pixel((1,0), f)
-
-cur_file = None
-"""
-
 # points (x, y) som et koordinatsystem
 pixels_changed = []
 
 file_rect = (0,0,80,26)
 new_file_rect = (80,0,80,26)
+save_file_rect = (160,0,80,26)
+colour_rect = (240,0,80,26)
 
 offset = [WIDTH//4-13,HEIGHT//4-13]
 
 
 
 
-upper_texts = [TEXT((13,7), "OPEN", pygame.font.SysFont("freecomicsansbold", 24)), TEXT((93,7), "NEW", pygame.font.SysFont("freecomicsansbold", 24))]
+upper_texts = [TEXT((13,7), "OPEN", pygame.font.SysFont("freecomicsansbold", 24)), TEXT((93,7), "NEW", pygame.font.SysFont("freecomicsansbold", 24)), TEXT((173,7), "SAVE", pygame.font.SysFont("freecomicsansbold", 24))]
 
 rect_hovering_over = None
 
@@ -306,6 +269,8 @@ class PIXEL():
 
 pixels = []
 
+end_message = " *"
+
 run = True
 while run:
     pos = pygame.mouse.get_pos()
@@ -316,7 +281,17 @@ while run:
         if event.type == pygame.MOUSEBUTTONDOWN:
             #pos = pygame.mouse.get_pos()
             if pos[1] > 26:
-                pass
+                if current_file != None:
+                    for pix in pixels:
+                        if pygame.rect.Rect(pix.rect).collidepoint(pos[0],pos[1]):
+                            #change_pixel(pix.img_pos, current_file)
+                            if pix not in pixels_changed:
+                                pix.colour = (255,0,0)
+                                pixels_changed.append(pix)
+                            else:
+                                save = pix
+                                pix.colour = (255,0,0)
+                                pixels_changed[pixels_changed.index(save)] = pix
             else:
                 if pygame.rect.Rect(file_rect).collidepoint(pos[0],pos[1]):
                     current_file = get_file()
@@ -335,6 +310,11 @@ while run:
                             for x in range(current_file.size[0]):
                                 #pygame.draw.rect(SCREEN, current_file.pixels[y], (x*pixel_size + offset[0], y*pixel_size + offset[1], pixel_size, pixel_size))
                                 pixels.append(PIXEL( (x*pixel_size + offset[0], y*pixel_size + offset[1]), (x,y), ((255,255,255)), pixel_size ))
+                elif pygame.rect.Rect(save_file_rect).collidepoint(pos[0],pos[1]):
+                    for pix in pixels_changed:
+                        change_pixel(pix.img_pos, current_file)
+            #print(pixels_changed)
+                
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_z:
                 pixel_size *= 2
@@ -373,6 +353,11 @@ while run:
         pygame.draw.rect(SCREEN, ((255,0,0)), new_file_rect )
     else:
         pygame.draw.rect(SCREEN, ((0,0,0)), new_file_rect)
+
+    if pygame.rect.Rect(save_file_rect).collidepoint(pos[0],pos[1]):
+        pygame.draw.rect(SCREEN, ((255,0,0)), save_file_rect )
+    else:
+        pygame.draw.rect(SCREEN, ((0,0,0)), save_file_rect)
 
     for text in upper_texts:
         text.draw()
