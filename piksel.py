@@ -450,7 +450,6 @@ while run:
                     elif pygame.rect.Rect(colour_rect).collidepoint(pos[0], pos[1]):
                         current_rgb = get_colour(current_rgb)
                         upper_texts[-1].rgb = (255-current_rgb[0],255-current_rgb[1],255-current_rgb[2])
-                        print(current_rgb)
             #print(pixels_changed)
                 
         if event.type == pygame.KEYDOWN:
@@ -466,7 +465,6 @@ while run:
                 save = []
                 for y in range(current_file.size[1]):
                     for x in range(current_file.size[0]):
-                        print(read_pixel((x,y), current_file))
                         save.append(PIXEL( (x*pixel_size + offset[0], y*pixel_size + offset[1]), (x,y), read_pixel((x,y), current_file), pixel_size ))
                 pixels = save
 
