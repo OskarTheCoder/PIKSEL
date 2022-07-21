@@ -7,8 +7,8 @@
 #include <cmath>
 
 /*
-Legg til RÃ¸yk effekt?
-Kollision -> pÃ¥ skjermen som tegnes opp til hÃ¸yre med rects ikke i lister 
+Legg til Røyk effekt?
+Kollision -> på skjermen som tegnes opp til høyre med rects ikke i lister 
 Skrekk Spill???
 
 */
@@ -360,13 +360,28 @@ int main(int argc, char** argv)
 
     SDL_Renderer* renderer = SDL_CreateRenderer(screen, -1, 0);
 
-    TTF_Font* ammoFont;
+    TTF_Font *ammoFont = TTF_OpenFont("HelpMe.ttf", 20);
+
+    SDL_Color clrFg = { 0,0,255,0 };  // ("Fg" is foreground)
+    SDL_Surface* sText = TTF_RenderText_Solid(ammoFont, "Courier 12", clrFg);
+    SDL_Rect rcDest = { 0,0,0,0 };
+    SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, sText);
+    //SDL_BlitSurface(sText, NULL, , &rcDest);
+    SDL_Rect textRenderRect;
+    textRenderRect.x = 0;
+    textRenderRect.y = 0;
+    textRenderRect.w = sText->w;
+    textRenderRect.h = sText->h;
+    render(textRenderRect, textTexture, renderer);
+    SDL_FreeSurface(sText);
+
+    TTF_CloseFont(ammoFont);
 
 
     vector<Enemy> enemies;
     bool fired = false;
     vector<int> centerPos = {WIN_SIZE+WIN_SIZE/2,WIN_SIZE/2};
-
+    
     SDL_Texture* ak = IMG_LoadTexture(renderer, "ak.png");
     SDL_Rect akRect;
     akRect.x = 500;
@@ -670,7 +685,22 @@ int main(int argc, char** argv)
                 fireEffectShown = false;
             }
         }
+        TTF_Font* ammoFont = TTF_OpenFont("HelpMe.ttf", 20);
 
+        SDL_Color clrFg = { 255,0,0,0 };  // ("Fg" is foreground)
+        SDL_Surface* sText = TTF_RenderText_Solid(ammoFont, "24/24", clrFg);
+        SDL_Rect rcDest = { 960-sText->w,480-sText->h,0,0 };
+        SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, sText);
+        //SDL_BlitSurface(sText, NULL, , &rcDest);
+        SDL_Rect textRenderRect;
+        textRenderRect.x = 960 - sText->w;
+        textRenderRect.y = 480-sText->h;
+        textRenderRect.w = sText->w;
+        textRenderRect.h = sText->h;
+        render(textRenderRect, textTexture, renderer); 
+        SDL_FreeSurface(sText);
+
+        TTF_CloseFont(ammoFont);
         SDL_RenderPresent(renderer);
     }
 
