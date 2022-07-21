@@ -4,27 +4,35 @@
 #include <iostream>
 #include <cmath>
 
+/*
+Legg til Røyk effekt?
+Kollision -> på skjermen som tegnes opp til høyre med rects ikke i lister 
+Skrekk Spill???
+
+*/
+
 using namespace std;
 
 class Player
 {
-    public:
-        int posX;
-        int posY;
-        float worldPosX;
-        float worldPosY;
-        int fov;
-        int half_fov;
-        int angle;
+public:
+    int posX;
+    int posY;
+    float worldPosX;
+    float worldPosY;
+    int fov;
+    int half_fov;
+    int angle;
 };
 
 class Enemy
 {
-    public:
-        int worldPosX;
-        int worldPosY;
-        SDL_Rect rect;
-        char type;
+public:
+    int worldPosX;
+    int worldPosY;
+    SDL_Rect rect;
+    char type;
+    SDL_Rect rectOnScreen;
 };
 
 int correctDegrees(int d)
@@ -46,8 +54,12 @@ SDL_Rect getScaledRect(float dist, SDL_Rect org)
     SDL_Rect returned;
 
     float mulip = dist / 100;
-    returned.w = org.w / mulip;
-    returned.h = org.h / mulip;
+    returned.w = org.w / min((float)1.0, mulip);
+    returned.h = org.h / min((float)1.0, mulip);
+    if (mulip > 1.0) {
+        returned.w = 0;
+        returned.h = 0;
+    }
     return returned;
 
     /*if (dist < 50)
@@ -104,7 +116,7 @@ int angleBetween(int degreesX, int degreesY)
         degreesX += 360;
     }
 
-    return abs( degreesY - degreesX );
+    return abs(degreesY - degreesX);
 
 }
 
@@ -166,9 +178,9 @@ void render(SDL_Rect rect, SDL_Texture* texture, SDL_Renderer* renderer)
     dst.w = rect.w;
     dst.h = rect.h;
 
-
+    
     SDL_RenderCopy(renderer, texture, &src, &dst);
-
+    
 }
 
 int distance(vector<int> _p1, vector<int> _p2)
@@ -206,15 +218,15 @@ void cast_rays(SDL_Renderer& renderer, Player& player, vector<vector<int>> map)
         float curAngle = leftmost_angle + step * l;
         //cout << curAngle << endl;
 
-        float dirX = -sin(curAngle*3.14/180);
-        float dirY = cos(curAngle*3.14/180);
+        float dirX = -sin(curAngle * 3.14 / 180);
+        float dirY = cos(curAngle * 3.14 / 180);
 
         for (int depth = 1; depth <= maxSize; depth++)
         {
             float curPosX = player.worldPosX + dirX * depth;
             float curPosY = player.worldPosY + dirY * depth;
 
-            
+
             int mapX = curPosX / 48;
             int mapY = curPosY / 48;
 
@@ -235,10 +247,10 @@ void cast_rays(SDL_Renderer& renderer, Player& player, vector<vector<int>> map)
                         SDL_RenderDrawLineF(&renderer, l * 4 + i + 480, 240 - height / 2, l * 4 + i + 480, 240 + height / 2);
                     }
                 }
-                
+
 
                 break;
-                
+
             }
 
         }
@@ -262,7 +274,7 @@ vector<vector<int>> midPointCircleDraw(int x_centre, int y_centre, int r)
     if (r > 0)
     {
         points.push_back({ x + x_centre , -y + y_centre });
-        points.push_back({ y + x_centre , x + y_centre});
+        points.push_back({ y + x_centre , x + y_centre });
         points.push_back({ -y + x_centre, x + y_centre });
     }
 
@@ -316,12 +328,12 @@ int main(int argc, char** argv)
 
 
     SDL_Window* screen = SDL_CreateWindow("Raycaster",
-        SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 480*2, 480, 0);
+        SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 480 * 2, 480, 0);
 
     SDL_Event event = SDL_Event();
 
-    vector<vector<int>> MAP = { 
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, 
+    vector<vector<int>> MAP = {
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
         {1, 0, 0, 0, 0, 0, 0, 0, 0, 1},
         {1, 0, 0, 0, 0, 0, 0, 0, 0, 1},
         {1, 0, 0, 0, 0, 0, 1, 1, 1, 1},
@@ -333,13 +345,18 @@ int main(int argc, char** argv)
         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
     };
 
-   
+
 
 
     const int WIN_SIZE = 480;
     const int TILE_SIZE = WIN_SIZE / MAP.size();
 
     SDL_Renderer* renderer = SDL_CreateRenderer(screen, -1, 0);
+
+    //vector<SDL_Rect> rectsOnScreen;
+    vector<Enemy> enemies;
+    bool fired = false;
+    vector<int> centerPos = {WIN_SIZE+WIN_SIZE/2,WIN_SIZE/2};
 
     SDL_Texture* ak = IMG_LoadTexture(renderer, "ak.png");
     SDL_Rect akRect;
@@ -351,20 +368,22 @@ int main(int argc, char** argv)
     SDL_Texture* zombie = IMG_LoadTexture(renderer, "zombie.png");
     Enemy enemy = Enemy();
     SDL_Rect orgEnemyRect;
-   
+
     enemy.worldPosX = 100;
     enemy.worldPosY = 255;
     enemy.type = 'z';
     enemy.rect.x = 480 + 240 - 50;
     enemy.rect.y = 240 - 90;
-    enemy.rect.w = 111;
-    enemy.rect.h = 200;
+    enemy.rect.w = 39;
+    enemy.rect.h = 64;
+
+    enemies.push_back(enemy);
 
     orgEnemyRect.x = 480 + 240 - 50;
     orgEnemyRect.y = 240 - 90;
     orgEnemyRect.w = 111;
     orgEnemyRect.h = 200;
-   
+
     int oldDiff = 0;
 
     Player player = Player();
@@ -393,7 +412,7 @@ int main(int argc, char** argv)
             }
         }
     }
-        
+
     vector<SDL_Rect> map_rects_w = {};
     for (int r = 0; r < MAP.size(); r++)
     {
@@ -443,7 +462,7 @@ int main(int argc, char** argv)
             // Backwards / Baklengs
             float dirX = sin(player.angle * 3.14 / 180);
             float dirY = -1 * cos(player.angle * 3.14 / 180);
-            
+
             if (MAP[(player.worldPosY + dirY * 2) / TILE_SIZE][(player.worldPosX + dirX * 2) / TILE_SIZE] == 0)
             {
                 player.worldPosX += dirX;
@@ -453,9 +472,36 @@ int main(int argc, char** argv)
             }
         }
 
+        if (state[SDL_SCANCODE_RCTRL]) {
+            if (!fired)
+            {
+                //cout << " FIRING! " << endl;
+                for (int r = 0; r < enemies.size(); r++) // rectsOnScreen.size()
+                {
+                    SDL_Rect* curRect = &enemies[r].rect;//&rectsOnScreen[r];
+                    cout << curRect->x << ", " << curRect->y << endl;
+                    SDL_Point point;
+                    point.x = centerPos[0];
+                    point.y = centerPos[1];
+                    SDL_Point* constPoint = &point;
+                    if (SDL_PointInRect(constPoint, curRect)) {
+                        cout << " ENEMY HIT! " << endl;
+                    }
+
+                }
+                fired = true;
+            }
+        }
+        else
+        {
+            fired = false;
+        }
+
+
+        //rectsOnScreen.clear();
         cast_rays(*renderer, player, MAP);
 
-
+        
 
         //cout << angleFrom({ 0,0 }, { 1,1 }) << endl;
         int aB = correctDegrees(angleFrom({ (int)player.worldPosX,(int)player.worldPosY }, { enemy.worldPosX, enemy.worldPosY }));
@@ -486,14 +532,16 @@ int main(int argc, char** argv)
                 add = 240.0 + (240 / 100 * part);
             }
 
-            //cout << distancef({ player.worldPosX, player.worldPosY }, { (float)enemy.worldPosX,(float)enemy.worldPosY }) << endl;
             enemy.rect = getScaledRect(distancef({ player.worldPosX, player.worldPosY }, { (float)enemy.worldPosX,(float)enemy.worldPosY }), orgEnemyRect);
             enemy.rect.x = 480 + add;
             enemy.rect.y = orgEnemyRect.y;
+            
 
             render(enemy.rect, zombie, renderer);
+            //rectsOnScreen.push_back(enemy.rect);
+            
         }
-        
+
         // Background / Bakgrunn
         SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
         for (int i = 0; i < map_rects_g.size(); i++)
@@ -543,9 +591,9 @@ int main(int argc, char** argv)
         }
 
         SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-        SDL_RenderDrawLineF(renderer, player.worldPosX, player.worldPosY, player.worldPosX + ( - sin(player.angle * 3.14 / 180) * 50), player.worldPosY + (cos(player.angle * 3.14 / 180)*50));
-        
-        
+        SDL_RenderDrawLineF(renderer, player.worldPosX, player.worldPosY, player.worldPosX + (-sin(player.angle * 3.14 / 180) * 50), player.worldPosY + (cos(player.angle * 3.14 / 180) * 50));
+
+
 
         render(akRect, ak, renderer);
 
