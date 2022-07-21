@@ -242,7 +242,7 @@ void cast_rays(SDL_Renderer& renderer, Player& player, vector<vector<int>> map)
 
                     for (int i = 0; i < 4; i++)
                     {
-                        SDL_SetRenderDrawColor(&renderer, 255, 255, 0, 255);
+                        SDL_SetRenderDrawColor(&renderer, 127, 127, 127, 255);
                         SDL_RenderDrawLineF(&renderer, l * 4 + i + 480, 240 - height / 2, l * 4 + i + 480, 240 + height / 2);
                     }
                 }
@@ -329,7 +329,7 @@ int main(int argc, char** argv)
     }
 
     Mix_Music *bgm = Mix_LoadMUS("scary-forest-90162.mp3");
-    //Mix_Chunk;
+    Mix_Chunk *fireSoundEffect = Mix_LoadWAV("fire.wav");
 
     IMG_Init(IMG_INIT_PNG);
 
@@ -403,6 +403,15 @@ int main(int argc, char** argv)
     player.half_fov = 30;
     player.angle = 180;
 
+    SDL_Texture* fireEffect = IMG_LoadTexture(renderer, "firemuzzle.png");
+    SDL_Rect fireEffectRect;
+    fireEffectRect.x = centerPos[0];
+    fireEffectRect.y = centerPos[1];
+    fireEffectRect.w = 32;
+    fireEffectRect.h = 32;
+    bool fireEffectShown = false;
+    int currentFireEffectLifetime = 0;
+    int fireEffectLifeTime = 200;
     
 
     vector<SDL_Rect> map_rects_g = {};
@@ -484,6 +493,7 @@ int main(int argc, char** argv)
         if (state[SDL_SCANCODE_RCTRL]) {
             if (!fired)
             {
+                Mix_PlayChannel(-1, fireSoundEffect, 0);
                 //cout << " FIRING! " << endl;
                 for (int r = 0; r < enemies.size(); r++) // rectsOnScreen.size()
                 {
@@ -610,6 +620,16 @@ int main(int argc, char** argv)
             }
         }
 
+        for (int r = 6; r > 0; r--)
+        {
+            vector<vector<int>> ps = midPointCircleDraw(centerPos[0], centerPos[1], r);
+            for (int p = 0; p < ps.size(); p++)
+            {
+                SDL_RenderDrawPoint(renderer, ps[p][0], ps[p][1]);
+            }
+        }
+
+
         SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
         for (int t = 0; t < enemies.size(); t++)
         {
@@ -643,6 +663,7 @@ int main(int argc, char** argv)
     IMG_Quit();
 
     Mix_FreeMusic(bgm);
+    Mix_FreeChunk(fireSoundEffect);
     Mix_Quit();
     SDL_Quit();
 
