@@ -32,7 +32,7 @@ public:
     int worldPosY;
     SDL_Rect rect;
     char type;
-    SDL_Rect rectOnScreen;
+    int health;
 };
 
 int correctDegrees(int d)
@@ -501,46 +501,52 @@ int main(int argc, char** argv)
         //rectsOnScreen.clear();
         cast_rays(*renderer, player, MAP);
 
-        
-
-        //cout << angleFrom({ 0,0 }, { 1,1 }) << endl;
-        int aB = correctDegrees(angleFrom({ (int)player.worldPosX,(int)player.worldPosY }, { enemy.worldPosX, enemy.worldPosY }));
-        int diff = correctDegrees(angleBetweenNoAbs(aB, player.angle));
-        /*if (diff != oldDiff)
+        for (int e = 0; e < enemies.size(); e++)
         {
-            cout << diff << endl;
-            oldDiff = diff;
-        }*/
-
-
-        if (diff > (180 - player.half_fov - 50) && diff < (180 + player.half_fov + 50))
-        {
-            //cout << diff - 180 << endl;
-
-
-            float val = 180 - diff;
-            //cout << val << endl;
-            float part = abs(val / player.half_fov * 100);
-            //cout << part << "%" << endl;
-            float add;
-            if (diff > 180)
+            Enemy currentEnemy = enemies[e];
+            //cout << angleFrom({ 0,0 }, { 1,1 }) << endl;
+            int aB = correctDegrees(angleFrom({ (int)player.worldPosX,(int)player.worldPosY }, { currentEnemy.worldPosX, currentEnemy.worldPosY }));
+            int diff = correctDegrees(angleBetweenNoAbs(aB, player.angle));
+            /*if (diff != oldDiff)
             {
-                add = 240.0 - (240 / 100 * part);
-            }
-            else
+                cout << diff << endl;
+                oldDiff = diff;
+            }*/
+
+
+            if (diff > (180 - player.half_fov - 50) && diff < (180 + player.half_fov + 50))
             {
-                add = 240.0 + (240 / 100 * part);
+                //cout << diff - 180 << endl;
+
+
+                float val = 180 - diff;
+                //cout << val << endl;
+                float part = abs(val / player.half_fov * 100);
+                //cout << part << "%" << endl;
+                float add;
+                if (diff > 180)
+                {
+                    add = 240.0 - (240 / 100 * part);
+                }
+                else
+                {
+                    add = 240.0 + (240 / 100 * part);
+                }
+
+                currentEnemy.rect = getScaledRect(distancef({ player.worldPosX, player.worldPosY }, { (float)currentEnemy.worldPosX,(float)currentEnemy.worldPosY }), orgEnemyRect);
+                currentEnemy.rect.x = 480 + add;
+                currentEnemy.rect.y = orgEnemyRect.y;
+
+                enemies[e].rect = getScaledRect(distancef({player.worldPosX, player.worldPosY}, {(float)currentEnemy.worldPosX,(float)currentEnemy.worldPosY}), orgEnemyRect);
+                enemies[e].rect.x = 480 + add;
+                enemies[e].rect.y = orgEnemyRect.y;
+
+                render(currentEnemy.rect, zombie, renderer);
+                //rectsOnScreen.push_back(enemy.rect);
+
             }
-
-            enemy.rect = getScaledRect(distancef({ player.worldPosX, player.worldPosY }, { (float)enemy.worldPosX,(float)enemy.worldPosY }), orgEnemyRect);
-            enemy.rect.x = 480 + add;
-            enemy.rect.y = orgEnemyRect.y;
-            
-
-            render(enemy.rect, zombie, renderer);
-            //rectsOnScreen.push_back(enemy.rect);
-            
         }
+
 
         // Background / Bakgrunn
         SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
