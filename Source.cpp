@@ -1,8 +1,10 @@
 #include <SDL.h>
 #include <SDL_image.h>
+#include <SDL_mixer.h>
 #include <vector>
 #include <iostream>
 #include <cmath>
+
 
 /*
 Legg til Røyk effekt?
@@ -237,7 +239,6 @@ void cast_rays(SDL_Renderer& renderer, Player& player, vector<vector<int>> map)
                     float dist = distancef(p1, p2);
                     //cout << dist << endl;
                     float height = 480 / dist * 10;
-                    //cout << height << endl;
 
                     for (int i = 0; i < 4; i++)
                     {
@@ -317,10 +318,18 @@ vector<vector<int>> midPointCircleDraw(int x_centre, int y_centre, int r)
     return points;
 }
 
+
 int main(int argc, char** argv)
 {
 
     SDL_Init(SDL_INIT_VIDEO);
+    SDL_Init(SDL_INIT_AUDIO);
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 1, 2048) < 0) {
+        cout << "bruh..." << Mix_GetError() << endl;
+    }
+
+    Mix_Music *bgm = Mix_LoadMUS("scary-forest-90162.mp3");
+    //Mix_Chunk;
 
     IMG_Init(IMG_INIT_PNG);
 
@@ -394,6 +403,7 @@ int main(int argc, char** argv)
     player.half_fov = 30;
     player.angle = 180;
 
+    
 
     vector<SDL_Rect> map_rects_g = {};
     for (int r = 0; r < MAP.size(); r++)
@@ -502,8 +512,13 @@ int main(int argc, char** argv)
             fired = false;
         }
 
+        if (state[SDL_SCANCODE_LCTRL]) {
+            if (!Mix_PlayingMusic()) {
+                Mix_PlayMusic(bgm, -1);
+            }
+        }
 
-        //rectsOnScreen.clear();
+
         cast_rays(*renderer, player, MAP);
 
         for (int e = 0; e < enemies.size(); e++)
@@ -627,6 +642,8 @@ int main(int argc, char** argv)
 
     IMG_Quit();
 
+    Mix_FreeMusic(bgm);
+    Mix_Quit();
     SDL_Quit();
 
     return 0;
