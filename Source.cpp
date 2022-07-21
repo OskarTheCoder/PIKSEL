@@ -494,6 +494,7 @@ int main(int argc, char** argv)
             if (!fired)
             {
                 Mix_PlayChannel(-1, fireSoundEffect, 0);
+                fireEffectShown = true;
                 //cout << " FIRING! " << endl;
                 for (int r = 0; r < enemies.size(); r++) // rectsOnScreen.size()
                 {
@@ -537,7 +538,7 @@ int main(int argc, char** argv)
             {
 
                 Enemy currentEnemy = enemies[e];
-                //cout << angleFrom({ 0,0 }, { 1,1 }) << endl;
+
                 int aB = correctDegrees(angleFrom({ (int)player.worldPosX,(int)player.worldPosY }, { currentEnemy.worldPosX, currentEnemy.worldPosY }));
                 int diff = correctDegrees(angleBetweenNoAbs(aB, player.angle));
                 /*if (diff != oldDiff)
@@ -553,7 +554,7 @@ int main(int argc, char** argv)
 
 
                     float val = 180 - diff;
-                    //cout << val << endl;
+
                     float part = abs(val / player.half_fov * 100);
                     
                     float add;
@@ -575,7 +576,6 @@ int main(int argc, char** argv)
                     enemies[e].rect.y = orgEnemyRect.y;
 
                     render(currentEnemy.rect, zombie, renderer);
-                    //rectsOnScreen.push_back(enemy.rect);
 
                 }
             }
