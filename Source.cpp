@@ -143,7 +143,6 @@ int angleBetweenNoAbs(int degreesX, int degreesY)
 
 }
 
-
 double angleFrom(vector<int> p1, vector<int> p2)
 {
 
@@ -214,7 +213,6 @@ void cast_rays(SDL_Renderer& renderer, Player& player, vector<vector<int>> map)
 
 
     for (int l = 0; l < maxCastRays; l++) {
-        //cout << l << endl;
         float curAngle = leftmost_angle + step * l;
         //cout << curAngle << endl;
 
@@ -376,6 +374,7 @@ int main(int argc, char** argv)
     enemy.rect.y = 240 - 90;
     enemy.rect.w = 39;
     enemy.rect.h = 64;
+    enemy.health = 4;
 
     enemies.push_back(enemy);
 
@@ -478,16 +477,22 @@ int main(int argc, char** argv)
                 //cout << " FIRING! " << endl;
                 for (int r = 0; r < enemies.size(); r++) // rectsOnScreen.size()
                 {
-                    SDL_Rect* curRect = &enemies[r].rect;//&rectsOnScreen[r];
-                    cout << curRect->x << ", " << curRect->y << endl;
-                    SDL_Point point;
-                    point.x = centerPos[0];
-                    point.y = centerPos[1];
-                    SDL_Point* constPoint = &point;
-                    if (SDL_PointInRect(constPoint, curRect)) {
-                        cout << " ENEMY HIT! " << endl;
+                    if (enemies[r].type == 'z')
+                    {
+                        SDL_Rect* curRect = &enemies[r].rect;//&rectsOnScreen[r];
+                        cout << curRect->x << ", " << curRect->y << endl;
+                        SDL_Point point;
+                        point.x = centerPos[0];
+                        point.y = centerPos[1];
+                        SDL_Point* constPoint = &point;
+                        if (SDL_PointInRect(constPoint, curRect)) {
+                            cout << " ENEMY HIT! " << endl;
+                            enemies[r].health -= 1;
+                            if (enemies[r].health <= 0) {
+                                enemies[r].type = 'd';
+                            }
+                        }
                     }
-
                 }
                 fired = true;
             }
@@ -503,47 +508,51 @@ int main(int argc, char** argv)
 
         for (int e = 0; e < enemies.size(); e++)
         {
-            Enemy currentEnemy = enemies[e];
-            //cout << angleFrom({ 0,0 }, { 1,1 }) << endl;
-            int aB = correctDegrees(angleFrom({ (int)player.worldPosX,(int)player.worldPosY }, { currentEnemy.worldPosX, currentEnemy.worldPosY }));
-            int diff = correctDegrees(angleBetweenNoAbs(aB, player.angle));
-            /*if (diff != oldDiff)
+            if (enemies[e].type == 'z')
             {
-                cout << diff << endl;
-                oldDiff = diff;
-            }*/
 
-
-            if (diff > (180 - player.half_fov - 50) && diff < (180 + player.half_fov + 50))
-            {
-                //cout << diff - 180 << endl;
-
-
-                float val = 180 - diff;
-                //cout << val << endl;
-                float part = abs(val / player.half_fov * 100);
-                //cout << part << "%" << endl;
-                float add;
-                if (diff > 180)
+                Enemy currentEnemy = enemies[e];
+                //cout << angleFrom({ 0,0 }, { 1,1 }) << endl;
+                int aB = correctDegrees(angleFrom({ (int)player.worldPosX,(int)player.worldPosY }, { currentEnemy.worldPosX, currentEnemy.worldPosY }));
+                int diff = correctDegrees(angleBetweenNoAbs(aB, player.angle));
+                /*if (diff != oldDiff)
                 {
-                    add = 240.0 - (240 / 100 * part);
-                }
-                else
+                    cout << diff << endl;
+                    oldDiff = diff;
+                }*/
+
+
+                if (diff > (180 - player.half_fov - 50) && diff < (180 + player.half_fov + 50))
                 {
-                    add = 240.0 + (240 / 100 * part);
+                    //cout << diff - 180 << endl;
+
+
+                    float val = 180 - diff;
+                    //cout << val << endl;
+                    float part = abs(val / player.half_fov * 100);
+                    
+                    float add;
+                    if (diff > 180)
+                    {
+                        add = 240.0 - (240 / 100 * part);
+                    }
+                    else
+                    {
+                        add = 240.0 + (240 / 100 * part);
+                    }
+
+                    currentEnemy.rect = getScaledRect(distancef({ player.worldPosX, player.worldPosY }, { (float)currentEnemy.worldPosX,(float)currentEnemy.worldPosY }), orgEnemyRect);
+                    currentEnemy.rect.x = 480 + add;
+                    currentEnemy.rect.y = orgEnemyRect.y;
+
+                    enemies[e].rect = getScaledRect(distancef({ player.worldPosX, player.worldPosY }, { (float)currentEnemy.worldPosX,(float)currentEnemy.worldPosY }), orgEnemyRect);
+                    enemies[e].rect.x = 480 + add;
+                    enemies[e].rect.y = orgEnemyRect.y;
+
+                    render(currentEnemy.rect, zombie, renderer);
+                    //rectsOnScreen.push_back(enemy.rect);
+
                 }
-
-                currentEnemy.rect = getScaledRect(distancef({ player.worldPosX, player.worldPosY }, { (float)currentEnemy.worldPosX,(float)currentEnemy.worldPosY }), orgEnemyRect);
-                currentEnemy.rect.x = 480 + add;
-                currentEnemy.rect.y = orgEnemyRect.y;
-
-                enemies[e].rect = getScaledRect(distancef({player.worldPosX, player.worldPosY}, {(float)currentEnemy.worldPosX,(float)currentEnemy.worldPosY}), orgEnemyRect);
-                enemies[e].rect.x = 480 + add;
-                enemies[e].rect.y = orgEnemyRect.y;
-
-                render(currentEnemy.rect, zombie, renderer);
-                //rectsOnScreen.push_back(enemy.rect);
-
             }
         }
 
@@ -587,12 +596,18 @@ int main(int argc, char** argv)
         }
 
         SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-        for (int r = 8; r > 0; r--)
+        for (int t = 0; t < enemies.size(); t++)
         {
-            vector<vector<int>> ps = midPointCircleDraw(enemy.worldPosX, enemy.worldPosY, r);
-            for (int p = 0; p < ps.size(); p++)
+            if (enemies[t].type == 'z')
             {
-                SDL_RenderDrawPoint(renderer, ps[p][0], ps[p][1]);
+                for (int r = 8; r > 0; r--)
+                {
+                    vector<vector<int>> ps = midPointCircleDraw(enemies[t].worldPosX, enemies[t].worldPosY, r);
+                    for (int p = 0; p < ps.size(); p++)
+                    {
+                        SDL_RenderDrawPoint(renderer, ps[p][0], ps[p][1]);
+                    }
+                }
             }
         }
 
