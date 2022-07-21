@@ -1,10 +1,10 @@
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_mixer.h>
+#include <SDL_ttf.h>
 #include <vector>
 #include <iostream>
 #include <cmath>
-
 
 /*
 Legg til Røyk effekt?
@@ -324,6 +324,8 @@ int main(int argc, char** argv)
 
     SDL_Init(SDL_INIT_VIDEO);
     SDL_Init(SDL_INIT_AUDIO);
+    TTF_Init();
+    
     if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 1, 2048) < 0) {
         cout << "bruh..." << Mix_GetError() << endl;
     }
@@ -353,14 +355,14 @@ int main(int argc, char** argv)
     };
 
 
-
-
     const int WIN_SIZE = 480;
     const int TILE_SIZE = WIN_SIZE / MAP.size();
 
     SDL_Renderer* renderer = SDL_CreateRenderer(screen, -1, 0);
 
-    //vector<SDL_Rect> rectsOnScreen;
+    TTF_Font* ammoFont;
+
+
     vector<Enemy> enemies;
     bool fired = false;
     vector<int> centerPos = {WIN_SIZE+WIN_SIZE/2,WIN_SIZE/2};
@@ -386,6 +388,9 @@ int main(int argc, char** argv)
     enemy.health = 4;
 
     enemies.push_back(enemy);
+    enemy.worldPosX += 50;
+    enemy.rect.x += 50;
+    enemies.push_back(enemy);
 
     orgEnemyRect.x = 480 + 240 - 50;
     orgEnemyRect.y = 240 - 90;
@@ -403,15 +408,20 @@ int main(int argc, char** argv)
     player.half_fov = 30;
     player.angle = 180;
 
+    
+
     SDL_Texture* fireEffect = IMG_LoadTexture(renderer, "firemuzzle.png");
+    
     SDL_Rect fireEffectRect;
-    fireEffectRect.x = centerPos[0];
-    fireEffectRect.y = centerPos[1];
+    vector<int> fireEffectPosition = { centerPos[0] + 20, centerPos[1] + 40 };
+    fireEffectRect.x = fireEffectPosition[0];
+    fireEffectRect.y = fireEffectPosition[1];
     fireEffectRect.w = 32;
     fireEffectRect.h = 32;
     bool fireEffectShown = false;
     int currentFireEffectLifetime = 0;
-    int fireEffectLifeTime = 200;
+    int fireEffectLifeTime = 5;
+    
     
 
     vector<SDL_Rect> map_rects_g = {};
@@ -477,7 +487,7 @@ int main(int argc, char** argv)
             }
         }
         if (state[SDL_SCANCODE_DOWN]) {
-            // Backwards / Baklengs
+
             float dirX = sin(player.angle * 3.14 / 180);
             float dirY = -1 * cos(player.angle * 3.14 / 180);
 
@@ -495,12 +505,12 @@ int main(int argc, char** argv)
             {
                 Mix_PlayChannel(-1, fireSoundEffect, 0);
                 fireEffectShown = true;
-                //cout << " FIRING! " << endl;
+
                 for (int r = 0; r < enemies.size(); r++) // rectsOnScreen.size()
                 {
                     if (enemies[r].type == 'z')
                     {
-                        SDL_Rect* curRect = &enemies[r].rect;//&rectsOnScreen[r];
+                        SDL_Rect* curRect = &enemies[r].rect;
                         cout << curRect->x << ", " << curRect->y << endl;
                         SDL_Point point;
                         point.x = centerPos[0];
@@ -652,6 +662,14 @@ int main(int argc, char** argv)
 
 
         render(akRect, ak, renderer);
+        if (fireEffectShown) {
+            currentFireEffectLifetime++;
+            render(fireEffectRect, fireEffect, renderer);
+            if (currentFireEffectLifetime >= fireEffectLifeTime) {
+                currentFireEffectLifetime = 0;
+                fireEffectShown = false;
+            }
+        }
 
         SDL_RenderPresent(renderer);
     }
@@ -665,6 +683,7 @@ int main(int argc, char** argv)
     Mix_FreeMusic(bgm);
     Mix_FreeChunk(fireSoundEffect);
     Mix_Quit();
+    TTF_Quit();
     SDL_Quit();
 
     return 0;
