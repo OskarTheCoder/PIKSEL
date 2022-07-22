@@ -5,15 +5,24 @@
 #include <vector>
 #include <iostream>
 #include <cmath>
+#include <string>
 
 /*
-Legg til R¯yk effekt?
-Kollision -> pÂ skjermen som tegnes opp til h¯yre med rects ikke i lister 
+Legg til R√∏yk effekt?
+Kollision -> p√• skjermen som tegnes opp til h√∏yre med rects ikke i lister 
 Skrekk Spill???
 
 */
 
 using namespace std;
+
+class Weapon
+{
+public:
+    int maxAmmo;
+    int curAmmo;
+    int damage;
+};
 
 class Player
 {
@@ -25,6 +34,9 @@ public:
     int fov;
     int half_fov;
     int angle;
+    int health;
+    Weapon weapon;
+    float hitRadius;
 };
 
 class Enemy
@@ -35,6 +47,7 @@ public:
     SDL_Rect rect;
     char type;
     int health;
+    float hitRadius;
 };
 
 int correctDegrees(int d)
@@ -318,6 +331,18 @@ vector<vector<int>> midPointCircleDraw(int x_centre, int y_centre, int r)
     return points;
 }
 
+bool circleCollision(vector<float> p1, vector<float> p2, float r1, float r2)
+{
+    float dist = distancef(p1, p2);
+    cout << dist << endl;
+    cout << (r1 + r2) << endl;
+    if (dist > (r1 + r2))
+    {
+        return false;
+    }
+    return true;
+}
+
 
 int main(int argc, char** argv)
 {
@@ -332,6 +357,7 @@ int main(int argc, char** argv)
 
     Mix_Music *bgm = Mix_LoadMUS("scary-forest-90162.mp3");
     Mix_Chunk *fireSoundEffect = Mix_LoadWAV("fire.wav");
+    Mix_Chunk *clickSoundEffect = Mix_LoadWAV("dryfire.wav");
 
     IMG_Init(IMG_INIT_PNG);
 
@@ -401,6 +427,7 @@ int main(int argc, char** argv)
     enemy.rect.w = 39;
     enemy.rect.h = 64;
     enemy.health = 4;
+    enemy.hitRadius = 8;
 
     enemies.push_back(enemy);
     enemy.worldPosX += 50;
@@ -422,7 +449,15 @@ int main(int argc, char** argv)
     player.fov = 60;
     player.half_fov = 30;
     player.angle = 180;
+    player.health = 100;
+    Weapon playerWeapon = Weapon();
+    playerWeapon.curAmmo = 24;
+    playerWeapon.maxAmmo = 24;
+    playerWeapon.damage = 1;
+    player.weapon = playerWeapon;
+    player.hitRadius = 8;
 
+    enemy.hitRadius = 8;
     
 
     SDL_Texture* fireEffect = IMG_LoadTexture(renderer, "firemuzzle.png");
@@ -472,6 +507,7 @@ int main(int argc, char** argv)
             }
         }
     }
+    
 
     const Uint8* state = SDL_GetKeyboardState(nullptr);
 
@@ -495,10 +531,22 @@ int main(int argc, char** argv)
 
             if (MAP[(player.worldPosY + dirY * 2) / TILE_SIZE][(player.worldPosX + dirX * 2) / TILE_SIZE] == 0)
             {
-                player.worldPosX += dirX * 2;
-                player.worldPosY += dirY * 2;
-                player.posY = player.worldPosY / TILE_SIZE;
-                player.posX = player.worldPosX / TILE_SIZE;
+                bool hit = false;
+                for (int e = 0; e < enemies.size(); e++)
+                {
+                    if (enemies[e].type == 'z')
+                    {
+                        if (circleCollision({ player.worldPosX + dirX * 2,player.worldPosY + dirY * 2 }, { (float)enemies[e].worldPosX,(float)enemies[e].worldPosY }, player.hitRadius, enemies[e].hitRadius)) {
+                            hit = true;
+                        }
+                    }
+                }
+                if (!hit) {
+                    player.worldPosX += dirX * 2;
+                    player.worldPosY += dirY * 2;
+                    player.posY = player.worldPosY / TILE_SIZE;
+                    player.posX = player.worldPosX / TILE_SIZE;
+                }
             }
         }
         if (state[SDL_SCANCODE_DOWN]) {
@@ -518,27 +566,34 @@ int main(int argc, char** argv)
         if (state[SDL_SCANCODE_RCTRL]) {
             if (!fired)
             {
-                Mix_PlayChannel(-1, fireSoundEffect, 0);
-                fireEffectShown = true;
-
-                for (int r = 0; r < enemies.size(); r++) // rectsOnScreen.size()
+                if (player.weapon.curAmmo > 0)
                 {
-                    if (enemies[r].type == 'z')
+                    Mix_PlayChannel(-1, fireSoundEffect, 0);
+                    fireEffectShown = true;
+                    player.weapon.curAmmo -= 1;
+
+                    for (int r = 0; r < enemies.size(); r++)
                     {
-                        SDL_Rect* curRect = &enemies[r].rect;
-                        cout << curRect->x << ", " << curRect->y << endl;
-                        SDL_Point point;
-                        point.x = centerPos[0];
-                        point.y = centerPos[1];
-                        SDL_Point* constPoint = &point;
-                        if (SDL_PointInRect(constPoint, curRect)) {
-                            cout << " ENEMY HIT! " << endl;
-                            enemies[r].health -= 1;
-                            if (enemies[r].health <= 0) {
-                                enemies[r].type = 'd';
+                        if (enemies[r].type == 'z')
+                        {
+                            SDL_Rect* curRect = &enemies[r].rect;
+                            SDL_Point point;
+                            point.x = centerPos[0];
+                            point.y = centerPos[1];
+                            SDL_Point* constPoint = &point;
+                            if (SDL_PointInRect(constPoint, curRect)) {
+                                enemies[r].health -= player.weapon.damage;
+                                if (enemies[r].health <= 0) {
+                                    enemies[r].type = 'd';
+                                }
                             }
                         }
                     }
+                    
+                }
+                else
+                {
+                    Mix_PlayChannel(-1, clickSoundEffect, 0);
                 }
                 fired = true;
             }
@@ -566,17 +621,9 @@ int main(int argc, char** argv)
 
                 int aB = correctDegrees(angleFrom({ (int)player.worldPosX,(int)player.worldPosY }, { currentEnemy.worldPosX, currentEnemy.worldPosY }));
                 int diff = correctDegrees(angleBetweenNoAbs(aB, player.angle));
-                /*if (diff != oldDiff)
-                {
-                    cout << diff << endl;
-                    oldDiff = diff;
-                }*/
-
 
                 if (diff > (180 - player.half_fov - 50) && diff < (180 + player.half_fov + 50))
                 {
-                    //cout << diff - 180 << endl;
-
 
                     float val = 180 - diff;
 
@@ -636,7 +683,7 @@ int main(int argc, char** argv)
         // Player / Spiller
         SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
 
-        for (int r = 8; r > 0; r--)
+        for (int r = (int)player.hitRadius; r > 0; r--)
         {
             vector<vector<int>> ps = midPointCircleDraw(player.worldPosX, player.worldPosY, r);
             for (int p = 0; p < ps.size(); p++)
@@ -660,7 +707,7 @@ int main(int argc, char** argv)
         {
             if (enemies[t].type == 'z')
             {
-                for (int r = 8; r > 0; r--)
+                for (int r = (int)enemies[t].hitRadius; r > 0; r--)
                 {
                     vector<vector<int>> ps = midPointCircleDraw(enemies[t].worldPosX, enemies[t].worldPosY, r);
                     for (int p = 0; p < ps.size(); p++)
@@ -687,8 +734,18 @@ int main(int argc, char** argv)
         }
         TTF_Font* ammoFont = TTF_OpenFont("HelpMe.ttf", 20);
 
-        SDL_Color clrFg = { 255,0,0,0 };  // ("Fg" is foreground)
-        SDL_Surface* sText = TTF_RenderText_Solid(ammoFont, "24/24", clrFg);
+        SDL_Color clrFg = { 255,0,0,0 };
+       
+        string m = to_string(player.weapon.curAmmo);
+
+        string mtwo = to_string(player.weapon.maxAmmo);
+
+        string mid = "/";
+
+        string fullMessageStr = m + mid + mtwo;
+        const char* message = fullMessageStr.c_str();
+
+        SDL_Surface* sText = TTF_RenderText_Solid(ammoFont, message, clrFg);
         SDL_Rect rcDest = { 960-sText->w,480-sText->h,0,0 };
         SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, sText);
         //SDL_BlitSurface(sText, NULL, , &rcDest);
@@ -712,6 +769,7 @@ int main(int argc, char** argv)
 
     Mix_FreeMusic(bgm);
     Mix_FreeChunk(fireSoundEffect);
+    Mix_FreeChunk(clickSoundEffect);
     Mix_Quit();
     TTF_Quit();
     SDL_Quit();
