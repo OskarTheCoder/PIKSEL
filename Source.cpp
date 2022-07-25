@@ -9,7 +9,7 @@
 
 /*
 Legg til Røyk effekt?
-Kollision -> på skjermen som tegnes opp til høyre med rects ikke i lister 
+Kollision -> på skjermen som tegnes opp til høyre med rects ikke i lister
 Skrekk Spill???
 
 */
@@ -192,9 +192,9 @@ void render(SDL_Rect rect, SDL_Texture* texture, SDL_Renderer* renderer)
     dst.w = rect.w;
     dst.h = rect.h;
 
-    
+
     SDL_RenderCopy(renderer, texture, &src, &dst);
-    
+
 }
 
 int distance(vector<int> _p1, vector<int> _p2)
@@ -343,21 +343,78 @@ bool circleCollision(vector<float> p1, vector<float> p2, float r1, float r2)
     return true;
 }
 
+/*
+Copies the pixels from a SDL2 surface.
+You should free() the returned pixels when you're done with it.
+*/
+Uint8* copySurfacePixels(
+    SDL_Surface* surface,  // surface to take pixels from
+    Uint32 pixelFormat,    // usually SDL_GetWindowPixelFormat(window)
+    SDL_Renderer* renderer,// main SDL2 renderer
+    int* width,            // stores result width
+    int* height,           // stores result height
+    int* pitch)            // stores result pitch
+{
+    Uint8* pixels = 0;
+    SDL_Surface* tmpSurface = 0;
+    SDL_Texture* texture = 0;
+    int sizeInBytes = 0;
+    void* tmpPixels = 0;
+    int tmpPitch = 0;
 
+    tmpSurface = SDL_ConvertSurfaceFormat(surface, pixelFormat, 0);
+    if (tmpSurface) {
+        texture = SDL_CreateTexture(renderer, pixelFormat,
+            SDL_TEXTUREACCESS_STREAMING,
+            tmpSurface->w, tmpSurface->h);
+    }
+
+    if (texture) {
+        if (width) {
+            *width = tmpSurface->w;
+        }
+        if (height) {
+            *height = tmpSurface->h;
+        }
+        if (pitch) {
+            *pitch = tmpSurface->pitch;
+        }
+        sizeInBytes = tmpSurface->pitch * tmpSurface->h;
+        pixels = (Uint8*)malloc(sizeInBytes);
+        SDL_LockTexture(texture, 0, &tmpPixels, &tmpPitch);
+        if (pixels != 0)
+        {
+            memcpy(pixels, tmpSurface->pixels, sizeInBytes);
+        }
+        SDL_UnlockTexture(texture);
+    }
+
+    // Cleanup
+    if (texture) {
+        SDL_DestroyTexture(texture);
+    }
+    if (tmpSurface) {
+        SDL_FreeSurface(tmpSurface);
+    }
+
+    return pixels;
+}
+
+SDL_Texture* t;
 int main(int argc, char** argv)
 {
 
     SDL_Init(SDL_INIT_VIDEO);
     SDL_Init(SDL_INIT_AUDIO);
     TTF_Init();
-    
+
     if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 1, 2048) < 0) {
         cout << "bruh..." << Mix_GetError() << endl;
     }
 
-    Mix_Music *bgm = Mix_LoadMUS("scary-forest-90162.mp3");
-    Mix_Chunk *fireSoundEffect = Mix_LoadWAV("fire.wav");
-    Mix_Chunk *clickSoundEffect = Mix_LoadWAV("dryfire.wav");
+    Mix_Music* bgm = Mix_LoadMUS("scary-forest-90162.mp3");
+    Mix_Chunk* fireSoundEffect = Mix_LoadWAV("fire.wav");
+    Mix_Chunk* clickSoundEffect = Mix_LoadWAV("dryfire.wav");
 
     IMG_Init(IMG_INIT_PNG);
 
@@ -386,7 +443,7 @@ int main(int argc, char** argv)
 
     SDL_Renderer* renderer = SDL_CreateRenderer(screen, -1, 0);
 
-    TTF_Font *ammoFont = TTF_OpenFont("HelpMe.ttf", 20);
+    TTF_Font* ammoFont = TTF_OpenFont("HelpMe.ttf", 20);
 
     SDL_Color clrFg = { 0,0,255,0 };  // ("Fg" is foreground)
     SDL_Surface* sText = TTF_RenderText_Solid(ammoFont, "Courier 12", clrFg);
@@ -406,8 +463,8 @@ int main(int argc, char** argv)
 
     vector<Enemy> enemies;
     bool fired = false;
-    vector<int> centerPos = {WIN_SIZE+WIN_SIZE/2,WIN_SIZE/2};
-    
+    vector<int> centerPos = { WIN_SIZE + WIN_SIZE / 2,WIN_SIZE / 2 };
+
     SDL_Texture* ak = IMG_LoadTexture(renderer, "ak.png");
     SDL_Rect akRect;
     akRect.x = 500;
@@ -458,10 +515,10 @@ int main(int argc, char** argv)
     player.hitRadius = 8;
 
     enemy.hitRadius = 8;
-    
+
 
     SDL_Texture* fireEffect = IMG_LoadTexture(renderer, "firemuzzle.png");
-    
+
     SDL_Rect fireEffectRect;
     vector<int> fireEffectPosition = { centerPos[0] + 20, centerPos[1] + 40 };
     fireEffectRect.x = fireEffectPosition[0];
@@ -471,8 +528,27 @@ int main(int argc, char** argv)
     bool fireEffectShown = false;
     int currentFireEffectLifetime = 0;
     int fireEffectLifeTime = 5;
+
     
-    
+    SDL_Surface* img = IMG_Load("zombie.png");
+    Uint32 pf = SDL_GetWindowPixelFormat(screen);
+    int w = 0, h = 0, p = 0;
+    Uint8* pixels = copySurfacePixels(img, pf, renderer, &w, &h, &p);
+    if (pixels)
+    {
+        printf("width=%d, height=%d, pitch=%d\n", w, h, p);
+
+        // Print color at (1,1)
+        int x = 41, y = 41;
+
+        // Assuming BGRA format
+        int b = pixels[4 * (y * w + x) + 0]; // Blue
+        int g = pixels[4 * (y * w + x) + 1]; // Green
+        int r = pixels[4 * (y * w + x) + 2]; // Red
+        int a = pixels[4 * (y * w + x) + 3]; // Alpha
+        printf("Pixel at (%d,%d) has RGBA color (%d,%d,%d,%d)\n", x, y, r, g, b, a);
+    }
+    free(pixels);
 
     vector<SDL_Rect> map_rects_g = {};
     for (int r = 0; r < MAP.size(); r++)
@@ -507,7 +583,8 @@ int main(int argc, char** argv)
             }
         }
     }
-    
+
+
 
     const Uint8* state = SDL_GetKeyboardState(nullptr);
 
@@ -517,6 +594,8 @@ int main(int argc, char** argv)
         SDL_PollEvent(&event);
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
+
+        
 
         if (state[SDL_SCANCODE_LEFT]) {
             player.angle -= 5;
@@ -589,7 +668,7 @@ int main(int argc, char** argv)
                             }
                         }
                     }
-                    
+
                 }
                 else
                 {
@@ -628,7 +707,7 @@ int main(int argc, char** argv)
                     float val = 180 - diff;
 
                     float part = abs(val / player.half_fov * 100);
-                    
+
                     float add;
                     if (diff > 180)
                     {
@@ -735,7 +814,7 @@ int main(int argc, char** argv)
         TTF_Font* ammoFont = TTF_OpenFont("HelpMe.ttf", 20);
 
         SDL_Color clrFg = { 255,0,0,0 };
-       
+
         string m = to_string(player.weapon.curAmmo);
 
         string mtwo = to_string(player.weapon.maxAmmo);
@@ -744,17 +823,17 @@ int main(int argc, char** argv)
 
         string fullMessageStr = m + mid + mtwo;
         const char* message = fullMessageStr.c_str();
-
+        
         SDL_Surface* sText = TTF_RenderText_Solid(ammoFont, message, clrFg);
-        SDL_Rect rcDest = { 960-sText->w,480-sText->h,0,0 };
+        SDL_Rect rcDest = { 960 - sText->w,480 - sText->h,0,0 };
         SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, sText);
         //SDL_BlitSurface(sText, NULL, , &rcDest);
         SDL_Rect textRenderRect;
         textRenderRect.x = 960 - sText->w;
-        textRenderRect.y = 480-sText->h;
+        textRenderRect.y = 480 - sText->h;
         textRenderRect.w = sText->w;
         textRenderRect.h = sText->h;
-        render(textRenderRect, textTexture, renderer); 
+        render(textRenderRect, textTexture, renderer);
         SDL_FreeSurface(sText);
 
         TTF_CloseFont(ammoFont);
