@@ -209,7 +209,7 @@ float distancef(vector<float> _p1, vector<float> _p2)
     return dist;
 }
 
-void cast_rays(SDL_Renderer& renderer, Player& player, vector<vector<int>> map)
+void cast_rays(SDL_Renderer& renderer, Player& player, vector<vector<int>> map, SDL_Texture* tex)
 {
     /*SDL_Rect r;
     r.x = 0;
@@ -246,10 +246,25 @@ void cast_rays(SDL_Renderer& renderer, Player& player, vector<vector<int>> map)
             if (map[mapY][mapX] != 0) {
                 if (map[mapY][mapX] == 1)
                 {
+                    
+
                     //cout << curPosY << endl;
                     vector<float> p1 = { (float)player.worldPosX, (float)player.worldPosY };
                     vector<float> p2 = { curPosX, curPosY };
                     float dist = distancef(p1, p2);
+
+                    int side;
+                    vector<float> pointBeforeHit = { curPosX - dirX, curPosY - dirY };
+                    if (pointBeforeHit[1] > mapY * 48 || pointBeforeHit[1] < mapY * 48 - 48)
+                    {
+                        side = 0;
+                    }
+                    else
+                    {
+                        side = 1;
+                    }
+
+
                     //cout << dist << endl;
                     float height = 480 / dist * 10;
 
@@ -689,7 +704,7 @@ int main(int argc, char** argv)
         }
 
 
-        cast_rays(*renderer, player, MAP);
+        cast_rays(*renderer, player, MAP, zombie);
 
         for (int e = 0; e < enemies.size(); e++)
         {
