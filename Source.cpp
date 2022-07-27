@@ -209,7 +209,163 @@ float distancef(vector<float> _p1, vector<float> _p2)
     return dist;
 }
 
-void cast_rays(SDL_Renderer& renderer, Player& player, vector<vector<int>> map, SDL_Texture* tex)
+/*
+Copies the pixels from a SDL2 surface.
+You should free() the returned pixels when you're done with it.
+*/
+Uint8* copySurfacePixels(
+    SDL_Surface* surface,  // surface to take pixels from
+    Uint32 pixelFormat,    // usually SDL_GetWindowPixelFormat(window)
+    SDL_Renderer* renderer,// main SDL2 renderer
+    int* width,            // stores result width
+    int* height,           // stores result height
+    int* pitch)            // stores result pitch
+{
+    Uint8* pixels = 0;
+    SDL_Surface* tmpSurface = 0;
+    SDL_Texture* texture = 0;
+    int sizeInBytes = 0;
+    void* tmpPixels = 0;
+    int tmpPitch = 0;
+
+    tmpSurface = SDL_ConvertSurfaceFormat(surface, pixelFormat, 0);
+    if (tmpSurface) {
+        texture = SDL_CreateTexture(renderer, pixelFormat,
+            SDL_TEXTUREACCESS_STREAMING,
+            tmpSurface->w, tmpSurface->h);
+    }
+
+    if (texture) {
+        if (width) {
+            *width = tmpSurface->w;
+        }
+        if (height) {
+            *height = tmpSurface->h;
+        }
+        if (pitch) {
+            *pitch = tmpSurface->pitch;
+        }
+        sizeInBytes = tmpSurface->pitch * tmpSurface->h;
+        pixels = (Uint8*)malloc(sizeInBytes);
+        SDL_LockTexture(texture, 0, &tmpPixels, &tmpPitch);
+        if (pixels != 0)
+        {
+            memcpy(pixels, tmpSurface->pixels, sizeInBytes);
+        }
+        SDL_UnlockTexture(texture);
+    }
+
+    // Cleanup
+    if (texture) {
+        SDL_DestroyTexture(texture);
+    }
+    if (tmpSurface) {
+        SDL_FreeSurface(tmpSurface);
+    }
+
+    return pixels;
+}
+
+class textureData {
+public:
+    vector<vector<vector<int>>> rgbData;
+};
+
+textureData getTextureData(SDL_Surface* textureSurf, Uint32 pf, SDL_Renderer* renderer) {
+
+    textureData returnData = textureData();
+
+
+    int w = 0, h = 0, p = 0;
+    Uint8* pixels;
+    pixels = copySurfacePixels(textureSurf, pf, renderer, &w, &h, &p);
+
+    int b;
+    int a;
+    int g;
+    int r;
+
+    a = 0;
+    b = 0;
+    g = 0;
+    r = 0;
+
+
+    for (int x = 0; x < w; x++)
+    {
+        vector<vector<int>> vec;
+
+        //cout << returnData.rgbData[-1][0][0] << endl;
+        for (int y = 0; y < h; y++)
+        {
+            // Assuming BGRA format
+            //cout << x << ", " << y << endl;
+
+
+            b = pixels[4 * (y * w + x) + 0]; // Blue
+            g = pixels[4 * (y * w + x) + 1]; // Green
+            r = pixels[4 * (y * w + x) + 2]; // Red
+            a = pixels[4 * (y * w + x) + 3]; // Alpha
+
+
+            vector<int> rgb = { r,g,b,a };
+            vec.push_back(rgb);
+
+
+        }
+        returnData.rgbData.push_back(vec);
+    }
+    free(pixels);
+    return returnData;
+};
+
+
+void drawTexturedLine(SDL_Renderer* renderer, textureData* data, Uint32* pf, int x, int y1, int y2, int tile_size) {
+
+    int h = data->rgbData.size();
+    int w = data->rgbData[0].size();
+
+    float stepX = (float)w / (float)x;
+
+    float posXinTexture = (float)x / (float)w;
+    int posxx = (int)posXinTexture;
+    int posxc = posxx * w;
+
+    // diff is the texture position (x in the texture)
+    int diff = x - posxc;
+    //cout << diff << endl;
+
+
+
+    float height = y2 - y1;
+
+    float stepY = h / height;
+    float stepYtwo = height / h;
+
+
+    //for (int y = height/2 * -1; y < height/2; y += stepY)
+    float yTwo = height / 2 * -1;
+    for (float y = h / 2 * -1; y < h / 2; y += stepY)
+    {
+        yTwo += stepYtwo;
+
+        int curY = (int)y;
+        //cout << curY << endl;
+        //cout << h << endl;
+        int r = data->rgbData[curY + h / 2][diff][0];
+        int g = data->rgbData[curY + h / 2][diff][1];
+        int b = data->rgbData[curY + h / 2][diff][2];
+        SDL_SetRenderDrawColor(renderer, r, g, b, 255);
+
+        SDL_RenderDrawPoint(renderer, x, 480 / 2 + yTwo);
+    }
+
+
+}
+
+SDL_Texture* t;
+
+void cast_rays(SDL_Renderer& renderer, Player& player, vector<vector<int>> map, SDL_Window* screen, textureData& data, Uint32& pf)
 {
     /*SDL_Rect r;
     r.x = 0;
@@ -248,31 +404,89 @@ void cast_rays(SDL_Renderer& renderer, Player& player, vector<vector<int>> map, 
                 {
                     
 
-                    //cout << curPosY << endl;
                     vector<float> p1 = { (float)player.worldPosX, (float)player.worldPosY };
                     vector<float> p2 = { curPosX, curPosY };
                     float dist = distancef(p1, p2);
 
-                    int side;
-                    vector<float> pointBeforeHit = { curPosX - dirX, curPosY - dirY };
-                    if (pointBeforeHit[1] > mapY * 48 || pointBeforeHit[1] < mapY * 48 - 48)
+                    //int side;
+                    //vector<float> pointBeforeHit = { curPosX - dirX, curPosY - dirY };
+                    /*if (pointBeforeHit[1] > mapY * 48 || pointBeforeHit[1] < mapY * 48 - 48)
                     {
                         side = 0;
                     }
                     else
                     {
                         side = 1;
-                    }
+                    }*/
 
-
-                    //cout << dist << endl;
+                    //float stepX, stepY;
                     float height = 480 / dist * 10;
+                    
+                    //SDL_Surface* img = IMG_Load("zombie.png");
+                    //Uint32 pf = SDL_GetWindowPixelFormat(screen);
+                    //int w = 0, h = 0, p = 0;
+                    //Uint8* pixels = copySurfacePixels(img, pf, &renderer, &w, &h, &p);
+                    /*
+                    if (pixels)
+                    {
+                        //printf("width=%d, height=%d, pitch=%d\n", w, h, p);
 
+                        // Print color at (1,1)
+                        int x = 41, y = 41;
+
+                        // Assuming BGRA format
+                        int b = pixels[4 * (y * w + x) + 0]; // Blue
+                        int g = pixels[4 * (y * w + x) + 1]; // Green
+                        int r = pixels[4 * (y * w + x) + 2]; // Red
+                        int a = pixels[4 * (y * w + x) + 3]; // Alpha
+                        //printf("Pixel at (%d,%d) has RGBA color (%d,%d,%d,%d)\n", x, y, r, g, b, a);
+                    }
+                    free(pixels);*/
+                    /*
+                    
+
+                    
+
+                    stepY = height / h;
+                    stepX = ((curPosX - (mapX * 48)) / w);
+                    //cout << (int)(stepX*64) << endl;
+                    //cout << height << ", " << h << endl;
+                    
+                    int stepPosY, stepPosX;
+                    int x, y;
+                    int b, g, r, a;
+                    for (float o = 0; o < w; o+=stepX)
+                    {
+                        stepPosX = (int)o;
+
+                        for (float u = 0; u < h; u += stepY)
+                        {
+                            stepPosY = (int)u;
+                            x = stepPosX;
+                            y = stepPosY;
+
+                            b = pixels[4 * (y * w + x) + 0]; // Blue
+                            g = pixels[4 * (y * w + x) + 1]; // Green
+                            r = pixels[4 * (y * w + x) + 2]; // Red
+                            a = pixels[4 * (y * w + x) + 3]; // Alpha
+                            //cout << o << ", " << u << endl;
+                            //cout << o << ", " << u << endl;
+                            SDL_SetRenderDrawColor(&renderer, r, g, b, a);
+                            SDL_RenderDrawPointF(&renderer, x, y);
+
+                        }
+                    }*/
+                    //free(pixels);
+
+                    
+                    //SDL_SetRenderDrawColor(&renderer, 127, 127, 127, 255);
                     for (int i = 0; i < 4; i++)
                     {
-                        SDL_SetRenderDrawColor(&renderer, 127, 127, 127, 255);
-                        SDL_RenderDrawLineF(&renderer, l * 4 + i + 480, 240 - height / 2, l * 4 + i + 480, 240 + height / 2);
+                        drawTexturedLine(&renderer, &data, &pf, l * 4 + i + 480, 0, height, 24);    
+                        //SDL_RenderDrawLineF(&renderer, l * 4 + i + 480, 240 - height / 2, l * 4 + i + 480, 240 + height / 2);
+                        
                     }
+                    
                 }
 
 
@@ -349,8 +563,8 @@ vector<vector<int>> midPointCircleDraw(int x_centre, int y_centre, int r)
 bool circleCollision(vector<float> p1, vector<float> p2, float r1, float r2)
 {
     float dist = distancef(p1, p2);
-    cout << dist << endl;
-    cout << (r1 + r2) << endl;
+    //cout << dist << endl;
+    //cout << (r1 + r2) << endl;
     if (dist > (r1 + r2))
     {
         return false;
@@ -358,64 +572,9 @@ bool circleCollision(vector<float> p1, vector<float> p2, float r1, float r2)
     return true;
 }
 
-/*
-Copies the pixels from a SDL2 surface.
-You should free() the returned pixels when you're done with it.
-*/
-Uint8* copySurfacePixels(
-    SDL_Surface* surface,  // surface to take pixels from
-    Uint32 pixelFormat,    // usually SDL_GetWindowPixelFormat(window)
-    SDL_Renderer* renderer,// main SDL2 renderer
-    int* width,            // stores result width
-    int* height,           // stores result height
-    int* pitch)            // stores result pitch
-{
-    Uint8* pixels = 0;
-    SDL_Surface* tmpSurface = 0;
-    SDL_Texture* texture = 0;
-    int sizeInBytes = 0;
-    void* tmpPixels = 0;
-    int tmpPitch = 0;
 
-    tmpSurface = SDL_ConvertSurfaceFormat(surface, pixelFormat, 0);
-    if (tmpSurface) {
-        texture = SDL_CreateTexture(renderer, pixelFormat,
-            SDL_TEXTUREACCESS_STREAMING,
-            tmpSurface->w, tmpSurface->h);
-    }
 
-    if (texture) {
-        if (width) {
-            *width = tmpSurface->w;
-        }
-        if (height) {
-            *height = tmpSurface->h;
-        }
-        if (pitch) {
-            *pitch = tmpSurface->pitch;
-        }
-        sizeInBytes = tmpSurface->pitch * tmpSurface->h;
-        pixels = (Uint8*)malloc(sizeInBytes);
-        SDL_LockTexture(texture, 0, &tmpPixels, &tmpPitch);
-        if (pixels != 0)
-        {
-            memcpy(pixels, tmpSurface->pixels, sizeInBytes);
-        }
-        SDL_UnlockTexture(texture);
-    }
 
-    // Cleanup
-    if (texture) {
-        SDL_DestroyTexture(texture);
-    }
-    if (tmpSurface) {
-        SDL_FreeSurface(tmpSurface);
-    }
-
-    return pixels;
-}
-
-SDL_Texture* t;
 int main(int argc, char** argv)
 {
 
@@ -428,6 +587,7 @@ int main(int argc, char** argv)
     }
 
     Mix_Music* bgm = Mix_LoadMUS("scary-forest-90162.mp3");
+    cout << bgm << endl;
     Mix_Chunk* fireSoundEffect = Mix_LoadWAV("fire.wav");
     Mix_Chunk* clickSoundEffect = Mix_LoadWAV("dryfire.wav");
 
@@ -461,19 +621,15 @@ int main(int argc, char** argv)
     TTF_Font* ammoFont = TTF_OpenFont("HelpMe.ttf", 20);
 
     SDL_Color clrFg = { 0,0,255,0 };  // ("Fg" is foreground)
-    SDL_Surface* sText = TTF_RenderText_Solid(ammoFont, "Courier 12", clrFg);
+    //SDL_Surface* sText = TTF_RenderText_Solid(ammoFont, "Courier 12", clrFg);
     SDL_Rect rcDest = { 0,0,0,0 };
-    SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, sText);
+    //SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, sText);
     //SDL_BlitSurface(sText, NULL, , &rcDest);
     SDL_Rect textRenderRect;
     textRenderRect.x = 0;
     textRenderRect.y = 0;
-    textRenderRect.w = sText->w;
-    textRenderRect.h = sText->h;
-    render(textRenderRect, textTexture, renderer);
-    SDL_FreeSurface(sText);
-
-    TTF_CloseFont(ammoFont);
+    textRenderRect.w = 0;
+    textRenderRect.h = 0;
 
 
     vector<Enemy> enemies;
@@ -544,26 +700,12 @@ int main(int argc, char** argv)
     int currentFireEffectLifetime = 0;
     int fireEffectLifeTime = 5;
 
-    
-    SDL_Surface* img = IMG_Load("zombie.png");
+
+
+    SDL_Surface* stonewallTexture = IMG_Load("stonewall.png");
     Uint32 pf = SDL_GetWindowPixelFormat(screen);
-    int w = 0, h = 0, p = 0;
-    Uint8* pixels = copySurfacePixels(img, pf, renderer, &w, &h, &p);
-    if (pixels)
-    {
-        printf("width=%d, height=%d, pitch=%d\n", w, h, p);
 
-        // Print color at (1,1)
-        int x = 41, y = 41;
-
-        // Assuming BGRA format
-        int b = pixels[4 * (y * w + x) + 0]; // Blue
-        int g = pixels[4 * (y * w + x) + 1]; // Green
-        int r = pixels[4 * (y * w + x) + 2]; // Red
-        int a = pixels[4 * (y * w + x) + 3]; // Alpha
-        printf("Pixel at (%d,%d) has RGBA color (%d,%d,%d,%d)\n", x, y, r, g, b, a);
-    }
-    free(pixels);
+    textureData stonewallData = getTextureData(stonewallTexture, pf, renderer);
 
     vector<SDL_Rect> map_rects_g = {};
     for (int r = 0; r < MAP.size(); r++)
@@ -599,7 +741,7 @@ int main(int argc, char** argv)
         }
     }
 
-
+    bool change = true;
 
     const Uint8* state = SDL_GetKeyboardState(nullptr);
 
@@ -608,17 +750,20 @@ int main(int argc, char** argv)
         SDL_Delay(1000 / 60);
         SDL_PollEvent(&event);
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
+        //SDL_RenderClear(renderer);
 
         
 
         if (state[SDL_SCANCODE_LEFT]) {
             player.angle -= 5;
+            change = true;
         }
         if (state[SDL_SCANCODE_RIGHT]) {
             player.angle += 5;
+            change = true;
         }
         if (state[SDL_SCANCODE_UP]) {
+            change = true;
 
             float dirX = -1.0 * sin(player.angle * 3.14 / 180);
             float dirY = cos(player.angle * 3.14 / 180);
@@ -644,6 +789,7 @@ int main(int argc, char** argv)
             }
         }
         if (state[SDL_SCANCODE_DOWN]) {
+            change = true;
 
             float dirX = sin(player.angle * 3.14 / 180);
             float dirY = -1 * cos(player.angle * 3.14 / 180);
@@ -658,6 +804,7 @@ int main(int argc, char** argv)
         }
 
         if (state[SDL_SCANCODE_RCTRL]) {
+            change = true;
             if (!fired)
             {
                 if (player.weapon.curAmmo > 0)
@@ -703,8 +850,12 @@ int main(int argc, char** argv)
             }
         }
 
-
-        cast_rays(*renderer, player, MAP, zombie);
+        if (change)
+        {
+            SDL_RenderClear(renderer);
+            cast_rays(*renderer, player, MAP, screen, stonewallData, pf);
+            change = false;
+        }
 
         for (int e = 0; e < enemies.size(); e++)
         {
@@ -746,8 +897,7 @@ int main(int argc, char** argv)
                 }
             }
         }
-
-
+        
         // Background / Bakgrunn
         SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
         for (int i = 0; i < map_rects_g.size(); i++)
@@ -824,11 +974,9 @@ int main(int argc, char** argv)
             if (currentFireEffectLifetime >= fireEffectLifeTime) {
                 currentFireEffectLifetime = 0;
                 fireEffectShown = false;
+                change = true;
             }
         }
-        TTF_Font* ammoFont = TTF_OpenFont("HelpMe.ttf", 20);
-
-        SDL_Color clrFg = { 255,0,0,0 };
 
         string m = to_string(player.weapon.curAmmo);
 
@@ -840,20 +988,22 @@ int main(int argc, char** argv)
         const char* message = fullMessageStr.c_str();
         
         SDL_Surface* sText = TTF_RenderText_Solid(ammoFont, message, clrFg);
-        SDL_Rect rcDest = { 960 - sText->w,480 - sText->h,0,0 };
+        
         SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, sText);
-        //SDL_BlitSurface(sText, NULL, , &rcDest);
-        SDL_Rect textRenderRect;
+
+        
         textRenderRect.x = 960 - sText->w;
         textRenderRect.y = 480 - sText->h;
         textRenderRect.w = sText->w;
         textRenderRect.h = sText->h;
         render(textRenderRect, textTexture, renderer);
         SDL_FreeSurface(sText);
+        SDL_DestroyTexture(textTexture);
 
-        TTF_CloseFont(ammoFont);
         SDL_RenderPresent(renderer);
     }
+
+    TTF_CloseFont(ammoFont);
 
     SDL_DestroyWindow(screen);
 
